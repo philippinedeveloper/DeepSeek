@@ -38,9 +38,14 @@ public class DeepSeek extends AndroidNonvisibleComponent {
     }
 
     @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_TEXTAREA, defaultValue = "YOUR_API_KEY")
-    @SimpleProperty(description = "Sets API key to DeepSeek")
+    @SimpleProperty(description = "Sets API key to DeepSeek", category = PropertyCategory.ADVANCED)
     public void ApiKey(String key){
             key = API_KEY;
+    }
+
+    @SimpleProperty(description = "Gets API key from DeepSeek", category = PropertyCategory.ADVANCED)
+    public String ApiKey(){
+           return API_KEY;
     }
         
 
