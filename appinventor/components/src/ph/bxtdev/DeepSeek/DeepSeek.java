@@ -51,73 +51,84 @@ public class DeepSeek extends AndroidNonvisibleComponent {
     }
 
     @SimpleFunction(description = "Sends a message to DeepSeek and returns the response")
-    public void Send(String message) {
-        AsynchUtil.runAsynchronously(new Runnable() {
-            @Override
-            public void run() {
-                HttpURLConnection connection = null;
-                try {
-                    URL url = new URL(API_URL);
-                    connection = (HttpURLConnection) url.openConnection();
-                    connection.setRequestMethod("POST");
-                    connection.setRequestProperty("Content-Type", "application/json");
-                    connection.setRequestProperty("Authorization", "Bearer " + apiKey);
-                    connection.setDoOutput(true);
+public void Send(String message) {
+    AsynchUtil.runAsynchronously(new Runnable() {
+        @Override
+        public void run() {
+            HttpURLConnection connection = null;
+            try {
+                URL url = new URL(API_URL);
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("POST");
+                connection.setRequestProperty("Content-Type", "application/json");
+                connection.setRequestProperty("Authorization", "Bearer " + apiKey);
+                connection.setDoOutput(true);
 
-                    JSONObject jsonRequest = new JSONObject();
-                    jsonRequest.put("model", "deepseek-chat");
-                    jsonRequest.put("frequency_penalty", 0);
-                    jsonRequest.put("max_tokens", 2048);
-                    jsonRequest.put("presence_penalty", 0);
-                    JSONObject responseFormat = new JSONObject();
-                    responseFormat.put("type", "text");
-                    jsonRequest.put("response_format", responseFormat);
-                    jsonRequest.put("stop", JSONObject.NULL);
-                    jsonRequest.put("stream", false);
-                    jsonRequest.put("stream_options", JSONObject.NULL);
-                    jsonRequest.put("temperature", 1);
-                    jsonRequest.put("top_p", 1);
-                    jsonRequest.put("tools", JSONObject.NULL);
-                    jsonRequest.put("tool_choice", "none");
-                    jsonRequest.put("logprobs", false);
-                    jsonRequest.put("top_logprobs", JSONObject.NULL);
+                JSONObject jsonRequest = new JSONObject();
+                jsonRequest.put("model", "deepseek-chat");
+                jsonRequest.put("frequency_penalty", 0);
+                jsonRequest.put("max_tokens", 2048);
+                jsonRequest.put("presence_penalty", 0);
+                jsonRequest.put("response_format", new JSONObject().put("type", "text"));
+                jsonRequest.put("stream", false);
+                jsonRequest.put("temperature", 1);
+                jsonRequest.put("top_p", 1);
+                jsonRequest.put("tool_choice", "none");
 
-                    JSONArray messages = new JSONArray();
-                    JSONObject userMessage = new JSONObject();
-                    userMessage.put("role", "user");
-                    userMessage.put("content", message);
-                    messages.put(userMessage);
-                    jsonRequest.put("messages", messages);
+                JSONArray messages = new JSONArray();
+                JSONObject userMessage = new JSONObject();
+                userMessage.put("role", "user");
+                userMessage.put("content", message);
+                messages.put(userMessage);
+                jsonRequest.put("messages", messages);
 
-                    try (OutputStream os = connection.getOutputStream()) {
-                        os.write(jsonRequest.toString().getBytes());
-                        os.flush();
-                    }
+                try (OutputStream os = connection.getOutputStream()) {
+                    os.write(jsonRequest.toString().getBytes());
+                    os.flush();
+                }
 
-                    int responseCode = connection.getResponseCode();
-                    if (responseCode == HttpURLConnection.HTTP_OK) {
-                        StringBuilder response = new StringBuilder();
-                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
-                            String line;
-                            while ((line = reader.readLine()) != null) {
-                                response.append(line);
-                            }
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    StringBuilder response = new StringBuilder();
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            response.append(line);
                         }
-                        GotResponse(response.toString());
-                    } else {
-                        Error();
                     }
-                } catch (IOException e) {
-                    Error();
-                } finally {
-                    if (connection != null) {
-                        connection.disconnect();
-                    }
+
+                    // Run the event on the main UI thread
+                    final String finalResponse = response.toString();
+                    form.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            GotResponse(finalResponse);
+                        }
+                    });
+
+                } else {
+                    runOnUiThreadError();
+                }
+            } catch (IOException e) {
+                runOnUiThreadError();
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
                 }
             }
-        });
-    }
+        }
+    });
+}
 
+// Utility method to call Error event on UI thread
+private void runOnUiThreadError() {
+    form.runOnUiThread(new Runnable() {
+        @Override
+        public void run() {
+            Error();
+        }
+    });
+}
     @SimpleEvent(description = "Triggered when a response is received from DeepSeek")
     public void GotResponse(String response) {
         EventDispatcher.dispatchEvent(this, "GotResponse", response);
